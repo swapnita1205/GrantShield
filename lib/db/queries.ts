@@ -1,16 +1,9 @@
-/**
- * Task 4 — Server-side read path: loads `PortfolioGrant[]` from Supabase
- * (same shape as `data/portfolio.json`). `app/page.tsx` uses this in production
- * and falls back to `loadPortfolio()` from `lib/dashboard-aggregates.ts` when
- * env is missing or the query returns no rows.
- */
 import "server-only";
-
+import { supabase } from "./client";
 import type {
   AuditData,
   AuditFinding,
   CrustdataProfile,
-  DataSource,
   Grant,
   PortfolioGrant,
   RiskScore,
@@ -19,207 +12,229 @@ import type {
   TimelineEvent,
 } from "../types";
 
-function isConfigured(): boolean {
-  return Boolean(
-    process.env.SUPABASE_URL?.trim() && process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  );
+type GrantRow = Grant;
+
+type RiskRow = { award_id: string; total: number | string; level: Severity; signals: unknown };
+
+type AuditRow = Omit<AuditData, "findings">;
+
+type FindingRow = AuditFinding & { auditee_uei: string };
+
+type SamRow = SamEntity;
+
+type CrustRow = CrustdataProfile;
+
+type TimelineRow = {
+  award_id: string;
+  event_date: string;
+  source: TimelineEvent["source"];
+  severity: Severity;
+  description: string;
+};
+
+function groupBy<T>(rows: T[], pick: (r: T) => string): Record<string, T[]> {
+  const out: Record<string, T[]> = {};
+  for (const r of rows) {
+    const key = pick(r);
+    if (!key) continue;
+    (out[key] ??= []).push(r);
+  }
+  return out;
 }
 
-function num(v: unknown): number {
-  if (typeof v === "number" && !Number.isNaN(v)) return v;
-  const n = Number(v);
-  return Number.isNaN(n) ? 0 : n;
+function coerceNumber(n: unknown): number {
+  if (typeof n === "number") return n;
+  if (typeof n === "string") {
+    const parsed = Number(n);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
-function ymd(d: unknown): string {
-  if (typeof d === "string") return d.slice(0, 10);
-  if (d instanceof Date) return d.toISOString().slice(0, 10);
-  return String(d);
-}
-
-function asGrant(r: Record<string, unknown>): Grant {
+function coerceGrant(row: GrantRow): Grant {
   return {
-    award_id: String(r.award_id),
-    recipient_name: String(r.recipient_name),
-    recipient_uei: String(r.recipient_uei),
-    cfda_number: String(r.cfda_number),
-    award_amount: num(r.award_amount),
-    total_outlays: num(r.total_outlays),
-    start_date: ymd(r.start_date),
-    end_date: ymd(r.end_date),
-    state: String(r.state),
-    city: String(r.city),
-    modification_count: Math.round(num(r.modification_count)),
-    burn_rate_pct: num(r.burn_rate_pct),
-    time_elapsed_pct: num(r.time_elapsed_pct),
-    burn_time_ratio: num(r.burn_time_ratio),
+    award_id: row.award_id,
+    recipient_name: row.recipient_name,
+    recipient_uei: row.recipient_uei,
+    cfda_number: row.cfda_number,
+    award_amount: coerceNumber(row.award_amount),
+    total_outlays: coerceNumber(row.total_outlays),
+    start_date: String(row.start_date ?? ""),
+    end_date: String(row.end_date ?? ""),
+    state: row.state ?? "",
+    city: row.city ?? "",
+    modification_count: Math.round(coerceNumber(row.modification_count)),
+    burn_rate_pct: coerceNumber(row.burn_rate_pct),
+    time_elapsed_pct: coerceNumber(row.time_elapsed_pct),
+    burn_time_ratio: coerceNumber(row.burn_time_ratio),
   };
 }
 
-function asAuditFinding(f: Record<string, unknown>): AuditFinding {
+function coerceFinding(f: FindingRow): AuditFinding {
   return {
-    year: Math.round(num(f.year)),
-    type_requirement: String(f.type_requirement),
+    year: Math.round(coerceNumber(f.year)),
+    type_requirement: f.type_requirement,
     is_material_weakness: Boolean(f.is_material_weakness),
     is_significant_deficiency: Boolean(f.is_significant_deficiency),
     is_questioned_costs: Boolean(f.is_questioned_costs),
-    questioned_costs_amount: num(f.questioned_costs_amount),
+    questioned_costs_amount: coerceNumber(f.questioned_costs_amount),
     is_repeated: Boolean(f.is_repeated),
   };
 }
 
-function asAuditData(
-  a: Record<string, unknown> | undefined,
-  findings: AuditFinding[] | undefined
-): AuditData | undefined {
-  if (!a) return undefined;
-  return {
-    auditee_uei: String(a.auditee_uei),
-    audit_years: (Array.isArray(a.audit_years) ? a.audit_years : []).map((x) => Math.round(num(x))),
-    audit_opinion: a.audit_opinion as AuditData["audit_opinion"],
-    findings: findings ?? [],
-    has_going_concern: Boolean(a.has_going_concern),
-    has_material_noncompliance: Boolean(a.has_material_noncompliance),
-  };
+function coerceRisk(row: RiskRow | undefined): RiskScore {
+  if (!row) return { total: 0, level: "low", signals: [] };
+  const signals = Array.isArray(row.signals) ? (row.signals as RiskScore["signals"]) : [];
+  return { total: coerceNumber(row.total), level: row.level, signals };
 }
 
-function asSam(r: Record<string, unknown>): SamEntity {
-  return {
-    uei: String(r.uei),
-    legal_name: String(r.legal_name),
-    registration_status: r.registration_status as SamEntity["registration_status"],
-    expiration_date: ymd(r.expiration_date),
-    has_delinquent_debt: Boolean(r.has_delinquent_debt),
-    debt_amount: num(r.debt_amount),
-    has_exclusion: Boolean(r.has_exclusion),
-    exclusion_type: String(r.exclusion_type),
-  };
-}
-
-function asCrust(r: Record<string, unknown>): CrustdataProfile {
-  const snippets = r.recent_review_snippets;
-  return {
-    matched_uei: String(r.matched_uei),
-    headcount: Math.round(num(r.headcount)),
-    headcount_qoq_pct: num(r.headcount_qoq_pct),
-    ceo_name: String(r.ceo_name),
-    employee_reviews_rating: num(r.employee_reviews_rating),
-    recent_review_snippets: Array.isArray(snippets) ? (snippets as string[]) : [],
-    job_postings: Math.round(num(r.job_postings)),
-    leadership_vacancy: Boolean(r.leadership_vacancy),
-  };
-}
-
-function asTimeline(rows: { event_date: string; source: string; severity: string; description: string }[]): TimelineEvent[] {
-  return rows.map((row) => ({
-    date: ymd(row.event_date),
-    source: row.source as DataSource,
-    severity: row.severity as Severity,
-    description: String(row.description),
-  }));
-}
-
-function asRisk(s: { total: unknown; level: unknown; signals: unknown }): RiskScore {
-  return {
-    total: num(s.total),
-    level: s.level as RiskScore["level"],
-    signals: (Array.isArray(s.signals) ? s.signals : []) as RiskScore["signals"],
-  };
-}
-
-export async function loadPortfolioFromSupabase(): Promise<PortfolioGrant[]> {
-  if (!isConfigured()) {
-    return [];
+async function fetchAll<T>(table: string): Promise<T[]> {
+  const out: T[] = [];
+  const pageSize = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error(`queries: ${table}: ${error.message}`);
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
   }
-  const { supabase } = await import("./client");
+  return out;
+}
 
-  const [
-    { data: grantRows, error: eG },
-    { data: riskRows, error: eR },
-    { data: timelineRows, error: eT },
-    { data: auditDataRows, error: eA },
-    { data: findingRows, error: eF },
-    { data: samRows, error: eS },
-    { data: crustRows, error: eC },
-  ] = await Promise.all([
-    supabase.from("grants").select("*").order("award_id"),
-    supabase.from("risk_scores").select("*"),
-    supabase.from("timeline_events").select("award_id, event_date, source, severity, description").order("event_date", { ascending: true }),
-    supabase.from("audit_data").select("*"),
-    supabase.from("audit_findings").select("*"),
-    supabase.from("sam_entities").select("*"),
-    supabase.from("crustdata_profiles").select("*"),
+/**
+ * Read the whole portfolio from Supabase and rebuild `PortfolioGrant[]` so the
+ * UI aggregations keep working unchanged.
+ */
+export async function loadPortfolioFromSupabase(): Promise<PortfolioGrant[]> {
+  const [grants, risks, audits, findings, sams, crusts, timelines] = await Promise.all([
+    fetchAll<GrantRow>("grants"),
+    fetchAll<RiskRow>("risk_scores"),
+    fetchAll<AuditRow>("audit_data"),
+    fetchAll<FindingRow>("audit_findings"),
+    fetchAll<SamRow>("sam_entities"),
+    fetchAll<CrustRow>("crustdata_profiles"),
+    fetchAll<TimelineRow>("timeline_events"),
   ]);
 
-  for (const err of [eG, eR, eT, eA, eF, eS, eC]) {
-    if (err) throw new Error(err.message);
-  }
-  if (!Array.isArray(grantRows) || !Array.isArray(riskRows)) {
-    return [];
-  }
-
-  function byAwardId<T extends { award_id: string }>(rows: T[]): Map<string, T[]> {
-    const m = new Map<string, T[]>();
-    for (const r of rows) {
-      if (!m.has(r.award_id)) m.set(r.award_id, []);
-      m.get(r.award_id)!.push(r);
-    }
-    return m;
-  }
-
-  const riskMap = new Map(
-    (riskRows as { award_id: string; total: unknown; level: unknown; signals: unknown }[]).map(
-      (r) => [r.award_id, r]
-    )
-  );
-
-  const tRows = (timelineRows ?? []) as { award_id: string; event_date: string; source: string; severity: string; description: string }[];
-  const timelineByAward = byAwardId(tRows);
-
-  const findByUei = new Map<string, AuditFinding[]>();
-  for (const fr of (findingRows ?? []) as Record<string, unknown>[]) {
-    const uei = String(fr.auditee_uei);
-    if (!findByUei.has(uei)) findByUei.set(uei, []);
-    findByUei.get(uei)!.push(asAuditFinding(fr));
-  }
-
-  const auditByUei = new Map<string, AuditData>();
-  for (const a of (auditDataRows ?? []) as Record<string, unknown>[]) {
-    const uei = String(a.auditee_uei);
-    const findings = findByUei.get(uei) ?? [];
-    const built = asAuditData(a, findings);
-    if (built) auditByUei.set(uei, built);
-  }
-
-  const samByUei = new Map(
-    ((samRows ?? []) as Record<string, unknown>[]).map((r) => [String(r.uei), asSam(r)])
-  );
-  const crustByUei = new Map(
-    ((crustRows ?? []) as Record<string, unknown>[]).map((r) => [String(r.matched_uei), asCrust(r)])
-  );
+  const riskByAward = new Map(risks.map((r) => [r.award_id, r]));
+  const auditByUei = new Map(audits.map((a) => [a.auditee_uei, a]));
+  const findingsByUei = groupBy(findings, (f) => f.auditee_uei);
+  const samByUei = new Map(sams.map((s) => [s.uei, s]));
+  const crustByUei = new Map(crusts.map((c) => [c.matched_uei, c]));
+  const timelineByAward = groupBy(timelines, (t) => t.award_id);
 
   const out: PortfolioGrant[] = [];
-  for (const raw of grantRows as Record<string, unknown>[]) {
-    const g = asGrant(raw);
-    const risk = riskMap.get(g.award_id);
-    if (!risk) {
-      continue;
+  for (const g of grants) {
+    const grant = coerceGrant(g);
+    const auditHeader = auditByUei.get(grant.recipient_uei);
+    let audit: AuditData | undefined = undefined;
+    if (auditHeader) {
+      const rows = findingsByUei[grant.recipient_uei] ?? [];
+      audit = {
+        auditee_uei: auditHeader.auditee_uei,
+        audit_years: Array.isArray(auditHeader.audit_years)
+          ? auditHeader.audit_years.map((y) => Math.round(coerceNumber(y)))
+          : [],
+        audit_opinion: auditHeader.audit_opinion,
+        findings: rows.map(coerceFinding),
+        has_going_concern: Boolean(auditHeader.has_going_concern),
+        has_material_noncompliance: Boolean(auditHeader.has_material_noncompliance),
+      };
     }
-
-    const uei = g.recipient_uei;
-    const audit = auditByUei.get(uei);
-    const sam = samByUei.get(uei);
-    const crust = crustByUei.get(uei);
-    const timeline = asTimeline(timelineByAward.get(g.award_id) ?? []);
+    const sam = samByUei.get(grant.recipient_uei);
+    const crustdata = crustByUei.get(grant.recipient_uei);
+    const tlRows = timelineByAward[grant.award_id] ?? [];
+    const timeline: TimelineEvent[] = tlRows.map((t) => ({
+      date: String(t.event_date ?? ""),
+      source: t.source,
+      severity: t.severity,
+      description: t.description,
+    }));
 
     out.push({
-      grant: g,
+      grant,
       ...(audit ? { audit } : {}),
       ...(sam ? { sam } : {}),
-      ...(crust ? { crustdata: crust } : {}),
-      risk: asRisk(risk),
+      ...(crustdata ? { crustdata } : {}),
+      risk: coerceRisk(riskByAward.get(grant.award_id)),
       timeline,
     });
   }
   return out;
+}
+
+export async function getPortfolioGrantFromSupabase(
+  awardId: string,
+): Promise<PortfolioGrant | null> {
+  const id = decodeURIComponent(awardId).trim();
+  const { data: grantRows, error: gErr } = await supabase
+    .from("grants")
+    .select("*")
+    .eq("award_id", id)
+    .limit(1);
+  if (gErr) throw new Error(`queries: grants: ${gErr.message}`);
+  const grantRow = grantRows?.[0] as GrantRow | undefined;
+  if (!grantRow) return null;
+  const grant = coerceGrant(grantRow);
+
+  const uei = grant.recipient_uei;
+  const [risksRes, auditRes, findingsRes, samRes, crustRes, tlRes] = await Promise.all([
+    supabase.from("risk_scores").select("*").eq("award_id", id).limit(1),
+    uei
+      ? supabase.from("audit_data").select("*").eq("auditee_uei", uei).limit(1)
+      : Promise.resolve({ data: [] as AuditRow[], error: null }),
+    uei
+      ? supabase.from("audit_findings").select("*").eq("auditee_uei", uei)
+      : Promise.resolve({ data: [] as FindingRow[], error: null }),
+    uei
+      ? supabase.from("sam_entities").select("*").eq("uei", uei).limit(1)
+      : Promise.resolve({ data: [] as SamRow[], error: null }),
+    uei
+      ? supabase.from("crustdata_profiles").select("*").eq("matched_uei", uei).limit(1)
+      : Promise.resolve({ data: [] as CrustRow[], error: null }),
+    supabase.from("timeline_events").select("*").eq("award_id", id),
+  ]);
+
+  for (const r of [risksRes, auditRes, findingsRes, samRes, crustRes, tlRes]) {
+    if ("error" in r && r.error) throw new Error(`queries: join: ${r.error.message}`);
+  }
+
+  const risk = coerceRisk((risksRes.data?.[0] as RiskRow | undefined) ?? undefined);
+
+  const auditRow = auditRes.data?.[0] as AuditRow | undefined;
+  let audit: AuditData | undefined = undefined;
+  if (auditRow) {
+    audit = {
+      auditee_uei: auditRow.auditee_uei,
+      audit_years: Array.isArray(auditRow.audit_years)
+        ? auditRow.audit_years.map((y) => Math.round(coerceNumber(y)))
+        : [],
+      audit_opinion: auditRow.audit_opinion,
+      findings: ((findingsRes.data ?? []) as FindingRow[]).map(coerceFinding),
+      has_going_concern: Boolean(auditRow.has_going_concern),
+      has_material_noncompliance: Boolean(auditRow.has_material_noncompliance),
+    };
+  }
+  const sam = (samRes.data?.[0] as SamRow | undefined) ?? undefined;
+  const crustdata = (crustRes.data?.[0] as CrustRow | undefined) ?? undefined;
+  const timeline: TimelineEvent[] = ((tlRes.data ?? []) as TimelineRow[]).map((t) => ({
+    date: String(t.event_date ?? ""),
+    source: t.source,
+    severity: t.severity,
+    description: t.description,
+  }));
+
+  return {
+    grant,
+    ...(audit ? { audit } : {}),
+    ...(sam ? { sam } : {}),
+    ...(crustdata ? { crustdata } : {}),
+    risk,
+    timeline,
+  };
 }
