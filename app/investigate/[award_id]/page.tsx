@@ -1,25 +1,17 @@
+import { notFound } from "next/navigation";
+import { InvestigationView } from "@/components/investigation/InvestigationView";
+import { getPortfolioGrantByAwardId } from "@/lib/investigation-data";
+
+type PageProps = { params: { award_id: string } };
+
 /**
- * Task 4+ — investigation route shell (CTA from dashboard `GrantsTable` → `/investigate/[award_id]`).
- * Full per-award deep-dive UI is Task 5; this page keeps the route valid for builds and `task4check.py`.
+ * Task 5 — investigation surface. Resolves the entity from `data/portfolio.json` by `award_id`.
+ * Swap `getPortfolioGrantByAwardId` for a Supabase join when the backend is ready.
  */
-import Link from "next/link";
-
-type Props = { params: { award_id: string } };
-
-export default function InvestigatePage({ params }: Props) {
-  const label = decodeURIComponent(params.award_id);
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-0)", color: "var(--text)", padding: 32 }}>
-      <p style={{ fontSize: 14, color: "var(--text-dim)" }}>
-        <Link href="/" style={{ color: "var(--brand)" }}>
-          ← Portfolio
-        </Link>
-      </p>
-      <h1 style={{ fontSize: 20, fontWeight: 600 }}>Investigation</h1>
-      <p className="num" style={{ color: "var(--text-dim)", marginTop: 12, maxWidth: 520, lineHeight: 1.5 }}>
-        <span style={{ color: "var(--text)" }}>{label}</span> — full evidence view, timeline, and actions ship in
-        Task 5.
-      </p>
-    </div>
-  );
+export default function InvestigateByAwardPage({ params }: PageProps) {
+  const grant = getPortfolioGrantByAwardId(params.award_id);
+  if (!grant) {
+    notFound();
+  }
+  return <InvestigationView grant={grant} />;
 }
