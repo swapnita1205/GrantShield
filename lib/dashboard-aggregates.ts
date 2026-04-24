@@ -1,5 +1,9 @@
-import type { AuditFinding } from "./types";
-import type { PortfolioGrant } from "./types";
+/**
+ * Task 4 — Dashboard analytics: `PortfolioGrant[]` → metrics, alerts, 6-month trend,
+ * and table rows. Pure functions; the home page (`app/page.tsx`) supplies data from
+ * Supabase (`loadPortfolioFromSupabase`) with JSON fallback (`loadPortfolio`).
+ */
+import type { AuditFinding, PortfolioGrant } from "./types";
 import portfolioJson from "../data/portfolio.json";
 
 // `loadPortfolio()` is the JSON fallback (and is still used by some tests).

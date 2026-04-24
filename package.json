@@ -1,6 +1,7 @@
 {
   "name": "grantshield",
   "version": "0.1.0",
+  "description": "Federal grant portfolio risk dashboard and investigation UI (Next.js, Supabase).",
   "private": true,
   "scripts": {
     "dev": "next dev",

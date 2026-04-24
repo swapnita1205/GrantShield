@@ -1,3 +1,7 @@
+/**
+ * Task 4 — Portfolio dashboard: Server Component, Supabase with JSON fallback, wires
+ * `lib/dashboard-aggregates.ts` + `GrantsTable`, CTA to `/agent` (Task 6).
+ */
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
@@ -53,7 +57,7 @@ export default async function HomePage() {
   const metrics = computeMetrics(portfolio);
   const buckets = computeRiskBuckets(portfolio);
   const alerts = buildRecentAlerts(portfolio, 6);
-  const trend = buildSixMonthRiskTrend(portfolio, new Date("2026-04-24"));
+  const trend = buildSixMonthRiskTrend(portfolio, new Date());
   const tableRows = buildGrantRows(portfolio);
 
   const distMax = Math.max(buckets.high, buckets.medium, buckets.low, 1);
@@ -73,7 +77,7 @@ export default async function HomePage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Image
             src="/grant_logo.png"
-            alt=""
+            alt="GrantShield"
             width={32}
             height={32}
             priority

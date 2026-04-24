@@ -9,10 +9,9 @@ What this validates:
 - required dashboard and routing files for the product shell
 - `next build` passes (TypeScript + static generation)
 
-Seamless backend handoff (read this before changing code):
-- **Current:** `lib/dashboard-aggregates.ts` calls `loadPortfolio()` which **imports** `data/portfolio.json` at build time. Aggregates, alerts, and the grants table are pure functions of `PortfolioGrant[]`.
-- **Future (Supabase):** Replace or wrap `loadPortfolio()` in an async `lib/dashboard-data.ts` that maps DB rows to `PortfolioGrant` (or a slimmer DTO) using the same `computeMetrics`, `buildGrantRows`, `buildRecentAlerts`, etc. Keep the React tree in `app/page.tsx` a Server Component that `await`s the fetch, then passes serializable props to `GrantsTable` (Client Component) exactly as now.
-- **Task 6:** The primary CTA targets `/agent` — mount `components/AgentFeed.tsx` and wire `EventSource` to `GET /api/investigate` on that page.
+Data flow (read this before changing code):
+- **Task 4:** `app/page.tsx` is a Server Component that `await`s `loadPortfolioFromSupabase()` from `lib/db/queries.ts`, then falls back to `loadPortfolio()` in `lib/dashboard-aggregates.ts` (static `data/portfolio.json`) when env is missing or the DB is empty. Metrics, alerts, the grants table, and the synthetic trend are pure functions of `PortfolioGrant[]` in `dashboard-aggregates.ts` — the UI should not reimplement them.
+- **Task 6:** The primary CTA targets `/agent` — mount the agent feed and wire `EventSource` to `GET /api/investigate` on that page.
 
 Exit codes: 0 = pass, 1 = fail.
 """
@@ -32,6 +31,7 @@ REQUIRED_PATHS: List[Path] = [
     ROOT / "app" / "agent" / "page.tsx",
     ROOT / "app" / "investigate" / "[award_id]" / "page.tsx",
     ROOT / "lib" / "dashboard-aggregates.ts",
+    ROOT / "lib" / "db" / "queries.ts",
     ROOT / "components" / "GrantsTable.tsx",
     ROOT / "package.json",
     ROOT / "next.config.mjs",
@@ -79,8 +79,10 @@ def main() -> int:
         page = read_page_tsx()
         if 'href="/agent"' not in page and "href='/agent'" not in page:
             errors.append("`app/page.tsx` must link the portfolio CTA to `/agent` (Task 6 feed).")
-        if "GrantsTable" not in page or "loadPortfolio" not in page:
-            errors.append("`app/page.tsx` should load portfolio data and render `GrantsTable`.")
+        if "GrantsTable" not in page or "loadPortfolio" not in page or "loadPortfolioFromSupabase" not in page:
+            errors.append(
+                "`app/page.tsx` should load portfolio data (JSON + `loadPortfolioFromSupabase`) and render `GrantsTable`."
+            )
 
         ag = read_aggregates()
         for needle in [

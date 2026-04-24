@@ -1,3 +1,6 @@
+/**
+ * Task 4 — High-risk grant inventory: client-side sort, row navigation to `/investigate/[award_id]`.
+ */
 "use client";
 
 import Link from "next/link";
@@ -77,8 +80,16 @@ export function GrantsTable({ rows }: { rows: GrantTableRow[] }) {
           {showAll ? "Top 10 by risk" : "Show all grants"}
         </button>
       </div>
-      <div className="gs-scroll" style={{ border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-1)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div
+        className="gs-scroll"
+        role="region"
+        aria-label="High-risk grant inventory"
+        style={{ border: "1px solid var(--border)", borderRadius: 4, background: "var(--bg-1)" }}
+      >
+        <table
+          aria-label="Grants, sortable by grantee, award, risk, and burn"
+          style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
+        >
           <thead>
             <tr style={{ background: "var(--bg-2)", textAlign: "left", color: "var(--text-dim)" }}>
               <th style={{ padding: "10px 12px" }}>

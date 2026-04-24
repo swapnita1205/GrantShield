@@ -2,7 +2,7 @@ import Link from "next/link";
 
 /**
  * Task 6 will mount `AgentFeed` here and connect to `GET /api/investigate` (SSE).
- * The dashboard &quot;Investigate Portfolio&quot; CTA links to this route.
+ * The dashboard "Investigate Portfolio" CTA links to this route.
  */
 export default function AgentFeedPage() {
   return (

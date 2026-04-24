@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "GrantShield — Portfolio",
   description: "Federal grant risk oversight",
+  openGraph: {
+    siteName: "GrantShield",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
