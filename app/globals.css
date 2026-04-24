@@ -1,0 +1,181 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --bg-0: #0b0c0e;
+  --bg-1: #12141a;
+  --bg-2: #181b22;
+  --border: #242833;
+  --text: #e8eaef;
+  --text-dim: #8b90a0;
+  --brand: #0f6e56;
+  --brand-dim: #0a4d3c;
+  --red: #e5484d;
+  --amber: #e8a317;
+  --blue: #4a9eff;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Source accent colors (alerts, legend) */
+.src-usa {
+  color: var(--blue);
+}
+.src-fac {
+  color: var(--amber);
+}
+.src-sam {
+  color: #a78bfa;
+}
+.src-crust {
+  color: #2dd4bf;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pill--critical,
+.pill--high {
+  background: #2a1416;
+  color: #ff8b8e;
+  border: 1px solid #4a1f24;
+}
+.pill--medium {
+  background: #2a2210;
+  color: #f0c14a;
+  border: 1px solid #4a3b18;
+}
+.pill--low {
+  background: #0f1f1a;
+  color: #4ade9a;
+  border: 1px solid #135236;
+}
+
+.btn-investigate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid #3a3f4f;
+  background: #1a1d26;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-investigate:hover {
+  background: #222631;
+  border-color: #4e5569;
+}
+
+.btn-portfolio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: var(--brand);
+  color: #f4fffa;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-portfolio:hover {
+  background: #118a6b;
+}
+.btn-portfolio:active {
+  transform: scale(0.99);
+}
+
+/* Attestation / paper-trail — distinct from brand green actions */
+.btn-mark-reviewed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c99212;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #e8b22a 0%, #c99212 100%);
+  color: #1c1505;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 18px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.btn-mark-reviewed:hover {
+  filter: brightness(1.06);
+}
+.btn-mark-reviewed:active {
+  transform: scale(0.99);
+}
+
+.mark-reviewed-banner {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  border: 1px solid rgba(232, 163, 23, 0.55);
+  background: rgba(232, 163, 23, 0.12);
+  color: #f0d78a;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 18px;
+  min-height: 44px;
+}
+
+.row-click {
+  cursor: pointer;
+}
+.row-click:hover {
+  background: #151821 !important;
+}
+
+/* Scroll area */
+.gs-scroll {
+  max-height: 360px;
+  overflow: auto;
+}
+.gs-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.gs-scroll::-webkit-scrollbar-thumb {
+  background: #2c3140;
+  border-radius: 4px;
+}
