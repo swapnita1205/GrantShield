@@ -111,6 +111,7 @@ async function fetchAll<T>(table: string): Promise<T[]> {
  * UI aggregations keep working unchanged.
  */
 export async function loadPortfolioFromSupabase(): Promise<PortfolioGrant[]> {
+  if (!supabase) throw new Error("Supabase not configured — missing env vars");
   const [grants, risks, audits, findings, sams, crusts, timelines] = await Promise.all([
     fetchAll<GrantRow>("grants"),
     fetchAll<RiskRow>("risk_scores"),
@@ -171,6 +172,7 @@ export async function loadPortfolioFromSupabase(): Promise<PortfolioGrant[]> {
 export async function getPortfolioGrantFromSupabase(
   awardId: string,
 ): Promise<PortfolioGrant | null> {
+  if (!supabase) throw new Error("Supabase not configured — missing env vars");
   const id = decodeURIComponent(awardId).trim();
   const { data: grantRows, error: gErr } = await supabase
     .from("grants")
