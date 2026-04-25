@@ -241,3 +241,136 @@ export async function getPortfolioGrantFromSupabase(
     timeline,
   };
 }
+
+export interface PortfolioStats {
+  cfda: string;
+  total_grants: number;
+  total_award_value_usd: number;
+  unique_states: number;
+  audit_unique_ueis: number;
+  audit_findings_total: number;
+  audit_material_weaknesses: number;
+  audit_significant_deficiencies: number;
+  audit_repeated_findings_ueis: number;
+  burn_rate_anomalies: number;
+  sam_records: number;
+  sam_delinquent_debt: number;
+  sam_active_exclusions: number;
+  sam_expiring_within_90_days: number;
+  crustdata_matched: number;
+  crustdata_headcount_decline_20: number;
+  crustdata_leadership_vacancies: number;
+  risk_critical: number;
+  risk_high: number;
+  risk_medium: number;
+  risk_low: number;
+  top_critical_award_id: string | null;
+  top_critical_recipient_name: string | null;
+  top_critical_score: number | null;
+}
+
+/**
+ * Single-shot live aggregate for the agent feed step messages. Reads what is
+ * actually in Supabase right now — no hardcoded counts.
+ */
+export async function getPortfolioStats(cfda = "93.224"): Promise<PortfolioStats> {
+  if (!supabase) throw new Error("Supabase not configured — missing env vars");
+
+  const [grants, audits, findings, sams, crusts, risks] = await Promise.all([
+    fetchAll<GrantRow>("grants"),
+    fetchAll<AuditRow>("audit_data"),
+    fetchAll<FindingRow>("audit_findings"),
+    fetchAll<SamRow>("sam_entities"),
+    fetchAll<CrustRow>("crustdata_profiles"),
+    fetchAll<RiskRow & { signals: unknown }>("risk_scores"),
+  ]);
+
+  const states = new Set<string>();
+  let totalValue = 0;
+  let burnAnomalies = 0;
+  for (const g of grants) {
+    if (g.state) states.add(g.state);
+    totalValue += coerceNumber(g.award_amount);
+    const ratio = coerceNumber(g.burn_time_ratio);
+    if (ratio > 1.3 || (ratio > 0 && ratio < 0.5)) burnAnomalies += 1;
+  }
+
+  const findingsByUei = groupBy(findings, (f) => f.auditee_uei);
+  let mwCount = 0;
+  let sdCount = 0;
+  let repeatedUeiCount = 0;
+  for (const [uei, fs] of Object.entries(findingsByUei)) {
+    const seen = new Set<string>();
+    for (const f of fs) {
+      const key = `${f.year}|${(f as unknown as Record<string, unknown>).reference_number ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (f.is_material_weakness) mwCount += 1;
+      if (f.is_significant_deficiency) sdCount += 1;
+    }
+    if (fs.some((f) => f.is_repeated)) repeatedUeiCount += 1;
+    void uei;
+  }
+
+  let samDelinquent = 0;
+  let samExclusions = 0;
+  let samExpiring = 0;
+  const today = Date.now();
+  const ms90 = 90 * 24 * 60 * 60 * 1000;
+  for (const s of sams) {
+    if (s.has_delinquent_debt) samDelinquent += 1;
+    if (s.has_exclusion) samExclusions += 1;
+    const exp = s.expiration_date ? new Date(s.expiration_date).getTime() : NaN;
+    if (Number.isFinite(exp) && exp >= today && exp - today <= ms90) samExpiring += 1;
+  }
+
+  let crustDecline = 0;
+  let crustVacancy = 0;
+  for (const c of crusts) {
+    if (coerceNumber(c.headcount_qoq_pct) <= -20) crustDecline += 1;
+    if (c.leadership_vacancy) crustVacancy += 1;
+  }
+
+  const dist = { low: 0, medium: 0, high: 0, critical: 0 };
+  let topCritical: { award_id: string; total: number } | null = null;
+  for (const r of risks) {
+    const total = coerceNumber(r.total);
+    const level = (r.level || "low") as keyof typeof dist;
+    if (level in dist) dist[level] += 1;
+    if (!topCritical || total > topCritical.total) {
+      topCritical = { award_id: r.award_id, total };
+    }
+  }
+  let topName: string | null = null;
+  if (topCritical) {
+    const match = grants.find((g) => g.award_id === topCritical!.award_id);
+    topName = match?.recipient_name ?? null;
+  }
+
+  return {
+    cfda,
+    total_grants: grants.length,
+    total_award_value_usd: totalValue,
+    unique_states: states.size,
+    audit_unique_ueis: audits.length,
+    audit_findings_total: findings.length,
+    audit_material_weaknesses: mwCount,
+    audit_significant_deficiencies: sdCount,
+    audit_repeated_findings_ueis: repeatedUeiCount,
+    burn_rate_anomalies: burnAnomalies,
+    sam_records: sams.length,
+    sam_delinquent_debt: samDelinquent,
+    sam_active_exclusions: samExclusions,
+    sam_expiring_within_90_days: samExpiring,
+    crustdata_matched: crusts.length,
+    crustdata_headcount_decline_20: crustDecline,
+    crustdata_leadership_vacancies: crustVacancy,
+    risk_critical: dist.critical,
+    risk_high: dist.high,
+    risk_medium: dist.medium,
+    risk_low: dist.low,
+    top_critical_award_id: topCritical?.award_id ?? null,
+    top_critical_recipient_name: topName,
+    top_critical_score: topCritical?.total ?? null,
+  };
+}

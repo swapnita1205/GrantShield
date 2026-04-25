@@ -102,10 +102,13 @@ export function buildEvidenceBySource(grant: PortfolioGrant): Record<EvidenceSou
     sa.push(
       sSig
         ? { text: sSig.detail, icon: sevToIcon(sSig.severity) }
-        : { text: "No SAM row in the demo file.", icon: "warning" }
+        : { text: "No SAM.gov record matched this UEI in the latest populate run.", icon: "warning" }
     );
     if (!sSig) {
-      sa.push({ text: "Add SAM in Task 9 integration to populate this card.", icon: "warning" });
+      sa.push({
+        text: "SAM.gov entity API is daily-quota throttled; re-run db:populate after midnight UTC to refresh.",
+        icon: "warning",
+      });
     }
   }
 

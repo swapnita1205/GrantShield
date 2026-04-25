@@ -48,14 +48,57 @@ export function computeRiskScore(
   const latestYear = latestAuditYear(audits);
   const latestFindings =
     latestYear === null ? [] : audits.findings.filter((finding) => finding.year === latestYear);
+  const latestMwCount = latestFindings.filter((f) => f.is_material_weakness).length;
+  const latestRepeatedCount = latestFindings.filter((f) => f.is_repeated).length;
 
-  // Tier 1 (2-3 points)
-  if (latestFindings.some((finding) => finding.is_material_weakness)) {
-    addSignal(2.5, {
+  // Tier 1 (2-3 points). MW signal scales with count: 1 MW = 2.5; each
+  // additional MW adds 0.5 up to +2.0. A grantee with 4 MWs in the latest
+  // single-audit is materially worse than one with a single isolated MW.
+  if (latestMwCount > 0) {
+    const points = Math.min(4.5, 2.5 + 0.5 * Math.max(0, latestMwCount - 1));
+    addSignal(points, {
       source: "FAC",
       severity: "critical",
       label: "Material weakness in latest audit",
-      detail: `Latest FAC filing (${latestYear}) reports at least one material weakness.`,
+      detail:
+        latestMwCount === 1
+          ? `Latest FAC filing (${latestYear}) reports a material weakness.`
+          : `Latest FAC filing (${latestYear}) reports ${latestMwCount} material weaknesses.`,
+    });
+  }
+
+  // All findings in the latest audit flagged as repeated → recipient is
+  // demonstrably failing to remediate prior-year findings. Strong Tier 1.
+  if (latestFindings.length >= 2 && latestRepeatedCount === latestFindings.length) {
+    addSignal(2, {
+      source: "FAC",
+      severity: "critical",
+      label: "All latest findings are repeats",
+      detail: `Every one of the ${latestFindings.length} findings in FY${latestYear} is flagged as repeated from a prior year.`,
+    });
+  }
+
+  // Three or more consecutive audit years with at least one material weakness.
+  // Encodes the multi-year persistence pattern OIG cites as the strongest
+  // predictor of further questioned costs.
+  const mwYears = Array.from(
+    new Set(audits.findings.filter((f) => f.is_material_weakness).map((f) => f.year)),
+  ).sort((a, b) => a - b);
+  let longestStreak = 0;
+  let currentStreak = 0;
+  let prev: number | null = null;
+  for (const y of mwYears) {
+    if (prev !== null && y === prev + 1) currentStreak += 1;
+    else currentStreak = 1;
+    if (currentStreak > longestStreak) longestStreak = currentStreak;
+    prev = y;
+  }
+  if (longestStreak >= 3) {
+    addSignal(2, {
+      source: "FAC",
+      severity: "critical",
+      label: "Multi-year material weakness pattern",
+      detail: `Material weaknesses recorded in ${longestStreak} consecutive audit years (${mwYears.slice(-longestStreak).join(", ")}).`,
     });
   }
 

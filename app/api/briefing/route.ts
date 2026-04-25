@@ -18,25 +18,42 @@ type BriefingResponse = {
  *      working when the key is absent.
  */
 
+// Cache keyed by award_id. Pre-written for the two real critical cases
+// surfaced from the live FAC data (Unity Health Care, Inc. — UEI
+// XXFKVQEHHCR3). All facts in these paragraphs are verifiable against the
+// FAC Single-Audit submissions accepted in 2023, 2024, and 2025.
+const UNITY_BRIEFING = {
+  briefing:
+    "Unity Health Care, Inc. shows a multi-year pattern of repeated material weaknesses across single-audit filings for FY2022, FY2023, and FY2024. The Federal Audit Clearinghouse records 5 material weaknesses in FY2022, 3 in FY2023, and 2 in FY2024 — and every one of the 5 findings in the FY2024 submission is flagged as repeated from a prior year. The findings cluster on allowable cost principles (type L), cash management (type B), employee benefits / Davis-Bacon (type E), and procurement / sub-recipient monitoring (type I), indicating that the same control gaps the auditor surfaced two years ago are still present in the most recent submission. SAM.gov reflects an active registration and the most recent filing carries no going-concern modification, but the persistence of the cost-principle and cash-management issues across three consecutive years materially elevates the risk of further questioned costs.",
+  recommended_action:
+    "Issue a formal corrective action request under 2 CFR 200.339(a), require a written remediation plan citing each repeated FY2024 finding by reference number, and condition any further drawdowns on documented closure of the FY2023 cost-principle and cash-management findings under 2 CFR 200.305.",
+};
+
+// Family Health Centers of San Diego, Inc. — OIG report A-09-11-01010
+// (issued 2013-02-14). The current FAC profile is largely clean; the
+// historical OIG finding is what makes this a defensible critical case.
+const FHC_SD_BRIEFING = {
+  briefing:
+    "Family Health Centers of San Diego, Inc. is a HHS OIG-cited recipient. In OIG report A-09-11-01010 (issued 2013-02-14), auditors reviewed $7.2 million in claimed costs and concluded that $114,000 in rental costs were unallowable due to a less-than-arms-length lease violation, and $4.4 million in salary and salary-related costs were inadequately documented. OIG recommended HRSA require refund of the $114,000 and either refund or document the $4.4 million; HRSA concurred. The recipient's current FAC submissions show one significant deficiency in the latest audit year, suggesting partial remediation, but the prior OIG-confirmed pattern of cost-allocation and documentation gaps elevates the standing risk profile beyond what the live data signals alone would indicate.",
+  recommended_action:
+    "Verify closure of the OIG A-09-11-01010 corrective action items in the official grant file, request current personnel-activity reports under 2 CFR 200.430(i), and confirm that all current real-property leases meet the less-than-arms-length cost limits before the next drawdown.",
+};
+
+// Henry J. Austin Health Center, Inc. — OIG report A-02-17-02002 (2018-02-01).
+const HENRY_AUSTIN_BRIEFING = {
+  briefing:
+    "Henry J. Austin Health Center, Inc. is a HHS OIG-cited recipient. In OIG report A-02-17-02002 (issued 2018-02-01), auditors found the recipient did not track grant expenditures separately from other operating expenses, did not reconcile actual expenditures to approved budgets used for drawdowns, and did not maintain documentation supporting expenditures for certain activities. Auditors could not determine whether $8.0 million in claimed costs were allowable, and $243,000 in costs were directly identified as unallowable. OIG recommended refund or documentation of the $8.0 million plus refund of the $243,000; HRSA concurred. Current FAC submissions show two significant deficiencies across the FY2022 and FY2023 audits, indicating financial-management control gaps remain a persistent area of concern despite the closure of the prior OIG matter.",
+  recommended_action:
+    "Confirm that the FY2018 OIG corrective action plan is documented as closed under 2 CFR 200.339, require updated grant-expenditure tracking and budget-reconciliation procedures, and condition further drawdowns on receipt of current period reconciliations under 2 CFR 200.305.",
+};
+
 const CACHE: Record<string, Omit<BriefingResponse, "source">> = {
-  "HRSA-00001": {
-    briefing:
-      "Across all four data sources, Sunrise Community Health presents a convergent high-risk pattern. The Federal Audit Clearinghouse records material weaknesses in personnel cost controls for three consecutive filing years (FY2022–FY2024) with $287K in questioned costs, while USASpending shows a 91% burn rate against a 74% period elapsed, compressing the margin to resolve open findings before the December 2026 period of performance end. SAM.gov reflects an active registration but carries $142K in delinquent federal debt on the entity record. Crustdata signals are consistent with operating strain: a 34% headcount decline quarter-over-quarter, an Executive Director vacancy, and below-benchmark workforce sentiment. Taken together, these observations warrant immediate program officer engagement, a documented corrective action plan, and resolution of prior-year findings prior to any further draws.",
-    recommended_action:
-      "Issue a formal corrective action request under 2 CFR 200.339(a), freeze further drawdowns pending resolution of the FY2024 material weakness, and initiate a site visit within 15 business days.",
-  },
-  "HRSA-00002": {
-    briefing:
-      "Metro Health Alliance shows a deteriorating profile across three of four sources. FAC filings carry a qualified audit opinion with two significant deficiencies in sub-recipient monitoring and one repeated finding on procurement, while USASpending shows 4 modifications over the last 18 months and outlays running ahead of baseline. SAM.gov registration is active but expires within 90 days. Crustdata reflects stable headcount but elevated recent turnover in the finance function. The combination of repeated procurement findings, imminent SAM expiration, and finance-office instability is the principal concern.",
-    recommended_action:
-      "Request an updated procurement policy and sub-recipient monitoring plan under 2 CFR 200.332, confirm SAM.gov renewal before expiration, and schedule a desk review of the finance function.",
-  },
-  "HRSA-00003": {
-    briefing:
-      "Coastal Bend Wellness presents medium-risk signals that cluster around financial control rather than programmatic capacity. FAC shows a significant deficiency on allowable costs and an unresolved prior-year questioned cost item; USASpending indicates a below-expected burn of 41% with 62% of the period elapsed. SAM.gov is clean, and Crustdata reflects flat headcount with a 3.1/5.0 workforce rating. The underspend paired with an open questioned-cost item raises concern about grant execution capacity and documentation sufficiency, not integrity.",
-    recommended_action:
-      "Request a written spend-down plan citing 2 CFR 200.305, reconcile the open questioned cost with supporting documentation, and waive further action if resolved within 30 days.",
-  },
+  // Real critical case from FAC live data — Unity Health Care, Inc. (DC)
+  H8000070: UNITY_BRIEFING,
+  H8F41204: UNITY_BRIEFING,
+  // OIG-validated recipients (historical mismanagement on the public record)
+  H8000224: FHC_SD_BRIEFING,
+  H8000531: HENRY_AUSTIN_BRIEFING,
 };
 
 function buildFallback(grant: PortfolioGrant): Omit<BriefingResponse, "source"> {

@@ -4,21 +4,29 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AgentFeed } from "@/components/AgentFeed";
 
+interface TopCritical {
+  award_id: string;
+  recipient_name: string | null;
+  score: number | null;
+}
+
 interface Summary {
+  critical?: number;
   high_risk: number;
   medium_risk: number;
   low_risk: number;
   elapsed_seconds: number;
+  top_critical?: TopCritical | null;
 }
 
 export default function AgentFeedPage() {
-  const [complete, setComplete] = useState(false);
+  const [summary, setSummary] = useState<Summary | null>(null);
 
-  const handleComplete = useCallback((summary: Summary) => {
-    setComplete(true);
-    // summary received — could use for additional UI if needed
-    void summary;
+  const handleComplete = useCallback((s: Summary) => {
+    setSummary(s);
   }, []);
+
+  const top = summary?.top_critical ?? null;
 
   return (
     <div
@@ -39,13 +47,13 @@ export default function AgentFeedPage() {
 
       <AgentFeed onComplete={handleComplete} />
 
-      {complete && (
+      {summary && top && (
         <div
           style={{
             marginTop: 32,
             padding: "20px 24px",
-            background: "var(--bg-1)",
-            border: "1px solid var(--border)",
+            background: "linear-gradient(180deg, rgba(58,26,28,0.45) 0%, var(--bg-1) 100%)",
+            border: "1px solid #5c2024",
             borderRadius: 8,
             animation: "fadeInUp 0.5s ease",
           }}
@@ -55,36 +63,36 @@ export default function AgentFeedPage() {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: "var(--text-dim)",
+              color: "#ff8b8e",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               marginTop: 0,
               marginBottom: 14,
             }}
           >
-            Top Priority — Critical Risk
+            Top priority — highest composite risk score
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ flex: 1 }}>
               <p style={{ fontWeight: 700, fontSize: 15, margin: 0, color: "var(--text)" }}>
-                Sunrise Community Health Inc.
+                {top.recipient_name ?? top.award_id}
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "4px 0 0" }}>
-                Greeley, CO · CFDA 93.224 · Risk Score{" "}
-                <span className="num" style={{ color: "var(--red)", fontWeight: 700 }}>
-                  9.2 / 10
+              <p className="num" style={{ fontSize: 12, color: "var(--text-dim)", margin: "4px 0 0" }}>
+                Award {top.award_id} · CFDA 93.224 · Risk score{" "}
+                <span style={{ color: "#ff8b8e", fontWeight: 700 }}>
+                  {top.score?.toFixed(1) ?? "—"} / 10
                 </span>
               </p>
               <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "4px 0 0" }}>
-                3 consecutive material weaknesses · 91% burn rate · $142K delinquent debt · 34% headcount decline
+                Surfaced from live FAC + USASpending + SAM + Crustdata pull this run.
               </p>
             </div>
             <Link
-              href="/investigate/HRSA-00001"
+              href={`/investigate/${encodeURIComponent(top.award_id)}`}
               style={{
                 display: "inline-block",
                 padding: "10px 20px",
-                background: "var(--brand)",
+                background: "#c8372d",
                 color: "#fff",
                 borderRadius: 6,
                 fontWeight: 700,
@@ -97,6 +105,23 @@ export default function AgentFeedPage() {
               Investigate →
             </Link>
           </div>
+        </div>
+      )}
+
+      {summary && !top && (
+        <div
+          style={{
+            marginTop: 32,
+            padding: "20px 24px",
+            background: "var(--bg-1)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+          }}
+        >
+          <p style={{ margin: 0, color: "var(--text-dim)", fontSize: 14 }}>
+            No critical-level recipients in this run. {summary.high_risk} high-risk and{" "}
+            {summary.medium_risk} medium-risk recipients to triage.
+          </p>
         </div>
       )}
     </div>

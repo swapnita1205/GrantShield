@@ -15,10 +15,16 @@ interface AgentStep {
 
 interface Summary {
   type: "summary";
+  critical?: number;
   high_risk: number;
   medium_risk: number;
   low_risk: number;
   elapsed_seconds: number;
+  top_critical?: {
+    award_id: string;
+    recipient_name: string | null;
+    score: number | null;
+  } | null;
 }
 
 interface AgentFeedProps {
@@ -251,6 +257,14 @@ export function AgentFeed({ onComplete }: AgentFeedProps) {
             INVESTIGATION COMPLETE
           </p>
           <div style={{ display: "flex", gap: 32 }}>
+            {typeof summary.critical === "number" && (
+              <div>
+                <div className="num" style={{ fontSize: 28, fontWeight: 700, color: "#ff8b8e" }}>
+                  {summary.critical}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>Critical</div>
+              </div>
+            )}
             <div>
               <div className="num" style={{ fontSize: 28, fontWeight: 700, color: "var(--red)" }}>
                 {summary.high_risk}
