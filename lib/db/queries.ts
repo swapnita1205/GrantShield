@@ -89,6 +89,7 @@ function coerceRisk(row: RiskRow | undefined): RiskScore {
 }
 
 async function fetchAll<T>(table: string): Promise<T[]> {
+  if (!supabase) throw new Error("Supabase not configured — missing env vars");
   const out: T[] = [];
   const pageSize = 1000;
   let offset = 0;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BriefingCard } from "@/components/investigation/BriefingCard";
 import { EvidenceIcon } from "@/components/investigation/EvidenceIcon";
 import { InvestigationActions } from "@/components/investigation/InvestigationActions";
 import { getInvestigationBriefing } from "@/lib/investigation-briefing";
@@ -205,28 +206,7 @@ export function InvestigationView({ grant }: { grant: PortfolioGrant }) {
           </div>
         </div>
 
-        <h2 style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.12, color: "var(--text-dim)", margin: "0 0 12px" }}>
-          AI risk briefing
-          {briefing.isCachedDemo && (
-            <span className="num" style={{ marginLeft: 8, color: "var(--text-dim)", fontWeight: 400, textTransform: "none" }}>
-              (demo cache — others use placeholder until /api/briefing)
-            </span>
-          )}
-        </h2>
-        <div
-          style={{
-            border: "1px solid #2a3142",
-            background: "linear-gradient(180deg, #141821 0%, #11141a 100%)",
-            borderRadius: 4,
-            padding: "18px 20px",
-            marginBottom: 28,
-            fontSize: 14,
-            lineHeight: 1.65,
-            color: "var(--text)",
-          }}
-        >
-          {briefing.text}
-        </div>
+        <BriefingCard grant={grant} initial={briefing.text} />
 
         <h2 style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.12, color: "var(--text-dim)", margin: "0 0 12px" }}>Actions</h2>
         <InvestigationActions grantId={g.award_id} signalLabels={signalLabels} />

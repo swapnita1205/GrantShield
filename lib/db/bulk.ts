@@ -7,6 +7,11 @@ import { supabase } from "./client";
  */
 const BATCH = 500;
 
+function requireClient() {
+  if (!supabase) throw new Error("Supabase not configured — missing env vars");
+  return supabase;
+}
+
 async function chunked<T>(rows: T[], fn: (batch: T[]) => Promise<void>): Promise<void> {
   for (let i = 0; i < rows.length; i += BATCH) {
     await fn(rows.slice(i, i + BATCH));
@@ -17,7 +22,7 @@ export async function bulkUpsertRiskScores(
   rows: { award_id: string; total: number; level: string; signals: unknown }[],
 ): Promise<void> {
   await chunked(rows, async (batch) => {
-    const { error } = await supabase
+    const { error } = await requireClient()
       .from("risk_scores")
       .upsert(batch, { onConflict: "award_id" });
     if (error) throw new Error(`bulk: risk_scores: ${error.message}`);
@@ -30,12 +35,12 @@ export async function replaceTimelineEventsByAward(
 ): Promise<void> {
   // Delete in chunks by award_id — single IN clause for a batch.
   await chunked(awardIds, async (batch) => {
-    const { error } = await supabase.from("timeline_events").delete().in("award_id", batch);
+    const { error } = await requireClient().from("timeline_events").delete().in("award_id", batch);
     if (error) throw new Error(`bulk: timeline delete: ${error.message}`);
   });
   // Insert new events in chunks.
   await chunked(events, async (batch) => {
-    const { error } = await supabase.from("timeline_events").insert(batch);
+    const { error } = await requireClient().from("timeline_events").insert(batch);
     if (error) throw new Error(`bulk: timeline insert: ${error.message}`);
   });
 }
