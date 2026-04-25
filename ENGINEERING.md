@@ -148,7 +148,7 @@ The JSON may include extra fields (e.g. `audits`, `risk_score` aliases); the cod
 - On click, writes **`localStorage`** key:  
   `grantshield:review:<award_id>`  
   Value JSON:  
-  `{ reviewer: "Sarah Chen, GMS", timestamp: ISO string, grant_id, signals_seen: string[] }`  
+  `{ reviewer: "Grants Management Specialist", timestamp: ISO string, grant_id, signals_seen: string[] }`  
   where `signals_seen` is the list of **`risk.signals[].label`**.  
 - UI replaces the button with an amber **banner** (`.mark-reviewed-banner`) showing **“Reviewed — &lt;localized date/time&gt;**” from `timestamp`.
 

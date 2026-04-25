@@ -94,21 +94,6 @@ export default async function HomePage() {
             grantshield
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            borderRadius: 999,
-            border: "1px solid var(--border)",
-            background: "var(--bg-2)",
-            padding: "8px 14px",
-            color: "var(--text-dim)",
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          <span style={{ color: "var(--text)" }}>Sarah Chen, GMS - HHS/HRSA</span>
-        </div>
       </header>
 
       <main style={{ padding: "20px 28px 40px" }}>

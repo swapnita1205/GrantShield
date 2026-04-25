@@ -13,7 +13,7 @@ type LetterResponse = {
   body: string;
 };
 
-const REVIEWER = "Sarah Chen, GMS — HHS/HRSA Office of Federal Assistance Management";
+const REVIEWER = "Grants Management Specialist · HHS/HRSA Office of Federal Assistance Management";
 
 function fmtDate(iso?: string): string {
   if (!iso) return "—";

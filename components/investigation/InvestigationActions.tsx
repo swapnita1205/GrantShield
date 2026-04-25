@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PortfolioGrant } from "@/lib/types";
 
-const REVIEWER = "Sarah Chen, GMS";
+const REVIEWER = "Grants Management Specialist";
 
 export type ReviewRecord = {
   reviewer: string;
